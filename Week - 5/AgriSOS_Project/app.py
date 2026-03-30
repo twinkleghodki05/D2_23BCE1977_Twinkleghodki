@@ -72,6 +72,17 @@ def calculate_risk_score(rd, ts, price_change, crop_stage, soil_moisture, expend
     if expenditure > 2: score += 10
     return min(score, 100)
 
+def translate_recommendations(recs, language):
+    if language == "English":
+        return recs
+    try:
+        from deep_translator import GoogleTranslator
+        lang_code = "ta" if "Tamil" in language else "hi"
+        translator = GoogleTranslator(source='en', target=lang_code)
+        return [translator.translate(rec) for rec in recs]
+    except:
+        return recs  # fallback to English if translation fails
+
 # PAGE CONFIG
 st.set_page_config(page_title="AgriSOS", page_icon="🌾", layout="wide")
 
@@ -103,6 +114,8 @@ with tab1:
         farmer_name = st.text_input("Farmer Name", "Ravi Kumar")
         crop = st.selectbox("Crop", ["Paddy", "Wheat", "Cotton", "Sugarcane", "Maize"])
         district = st.selectbox("District", ["Thanjavur", "Nagpur", "Ludhiana", "Warangal", "Nashik"])
+        language = st.selectbox("Advisory Language / மொழி", 
+                                ["English", "Tamil (தமிழ்)", "Hindi (हिंदी)"])
         crop_stage = st.selectbox("Crop Growth Stage",
                                    [1, 2, 3, 4],
                                    format_func=lambda x: {1:"Sowing", 2:"Vegetative", 3:"Flowering (Critical)", 4:"Harvest"}[x])
@@ -126,7 +139,7 @@ with tab1:
         proba = model.predict_proba(features)[0]
         risk_score = calculate_risk_score(rd, ts, price_change, crop_stage, soil_moisture, expenditure_ratio)
 
-        # ✅ STORE DATA (FIX)
+        # STORE DATA (FIX)
         st.session_state.prediction = prediction
         st.session_state.risk_score = risk_score
         st.session_state.farmer_name = farmer_name
@@ -186,7 +199,8 @@ with tab1:
                 "3. Consider diversifying crops for risk distribution"
             ]
         }
-        for rec in recs[prediction]:
+        translated_recs = translate_recommendations(recs[prediction], language)
+        for rec in translated_recs:
             st.write(rec)
 
         # Feature importance bar
@@ -199,7 +213,7 @@ with tab1:
         fig2.update_layout(coloraxis_showscale=False)
         st.plotly_chart(fig2, use_container_width=True)
 
-    # 🔥 SMS SECTION (OUTSIDE BUTTON — FINAL FIX)
+    #  SMS SECTION (OUTSIDE BUTTON — FINAL FIX)
     if "prediction" in st.session_state:
 
         st.divider()
